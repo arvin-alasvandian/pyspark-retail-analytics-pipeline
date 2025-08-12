@@ -12,6 +12,7 @@ The aim is to demonstrate a clear workflow: loading data, cleaning, exploratory 
    - `03_models.py`
 
 
+
 ## Methodology & Results (short)
 
 ### Methodology
@@ -98,7 +99,7 @@ It is reproducible (scripts, requirements, outputs folder), uses **Spark MLlib**
 
 **Run time:** Designed to run locally with Python + Java. Figures and metrics are written to `figures/` and `outputs/`.
 
-
+ 
 ## Project Screenshots
 
 > Generated automatically after you run `make eda` (or `python src/02_eda_sql.py`).
