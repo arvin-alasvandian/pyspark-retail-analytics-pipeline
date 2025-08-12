@@ -1,10 +1,17 @@
-import os, json
-from pyspark.sql import functions as F
-from pyspark.ml.feature import StringIndexer, OneHotEncoder, VectorAssembler
+import json
+import os
+
 from pyspark.ml import Pipeline
 from pyspark.ml.classification import DecisionTreeClassifier, LogisticRegression
+from pyspark.ml.evaluation import (
+    BinaryClassificationEvaluator,
+    MulticlassClassificationEvaluator,
+    RegressionEvaluator,
+)
+from pyspark.ml.feature import OneHotEncoder, StringIndexer, VectorAssembler
 from pyspark.ml.regression import LinearRegression
-from pyspark.ml.evaluation import MulticlassClassificationEvaluator, BinaryClassificationEvaluator, RegressionEvaluator
+from pyspark.sql import functions as F
+
 from utils import create_spark, resolve_col
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -32,15 +39,24 @@ for c in [col_age, col_income, col_spending, col_total_purchases, col_purchase_a
 # Encode categoricals
 indexers = [
     StringIndexer(inputCol=col_gender, outputCol=f"{col_gender}_idx", handleInvalid="keep"),
-    StringIndexer(inputCol=col_category, outputCol=f"{col_category}_idx", handleInvalid="keep")
+    StringIndexer(inputCol=col_category, outputCol=f"{col_category}_idx", handleInvalid="keep"),
 ]
 encoders = [
-    OneHotEncoder(inputCols=[f"{col_gender}_idx", f"{col_category}_idx"],
-                  outputCols=[f"{col_gender}_oh", f"{col_category}_oh"])
+    OneHotEncoder(
+        inputCols=[f"{col_gender}_idx", f"{col_category}_idx"],
+        outputCols=[f"{col_gender}_oh", f"{col_category}_oh"],
+    )
 ]
 
 # Feature vector for classifiers
-feature_cols = [col_age, col_income, col_spending, col_total_purchases, f"{col_gender}_oh", f"{col_category}_oh"]
+feature_cols = [
+    col_age,
+    col_income,
+    col_spending,
+    col_total_purchases,
+    f"{col_gender}_oh",
+    f"{col_category}_oh",
+]
 assembler_cls = VectorAssembler(inputCols=feature_cols, outputCol="features", handleInvalid="keep")
 
 # Split
@@ -52,14 +68,20 @@ pipeline_dt = Pipeline(stages=indexers + encoders + [assembler_cls, dt])
 model_dt = pipeline_dt.fit(train)
 pred_dt = model_dt.transform(test)
 
-acc_eval = MulticlassClassificationEvaluator(labelCol=col_outcome, predictionCol="prediction", metricName="accuracy")
-f1_eval = MulticlassClassificationEvaluator(labelCol=col_outcome, predictionCol="prediction", metricName="f1")
-auroc_eval = BinaryClassificationEvaluator(labelCol=col_outcome, rawPredictionCol="rawPrediction", metricName="areaUnderROC")
+acc_eval = MulticlassClassificationEvaluator(
+    labelCol=col_outcome, predictionCol="prediction", metricName="accuracy"
+)
+f1_eval = MulticlassClassificationEvaluator(
+    labelCol=col_outcome, predictionCol="prediction", metricName="f1"
+)
+auroc_eval = BinaryClassificationEvaluator(
+    labelCol=col_outcome, rawPredictionCol="rawPrediction", metricName="areaUnderROC"
+)
 
 dt_metrics = {
     "accuracy": float(acc_eval.evaluate(pred_dt)),
     "f1": float(f1_eval.evaluate(pred_dt)),
-    "auroc": float(auroc_eval.evaluate(pred_dt))
+    "auroc": float(auroc_eval.evaluate(pred_dt)),
 }
 print("Decision Tree metrics:", dt_metrics)
 
@@ -72,7 +94,7 @@ pred_lr = model_lr.transform(test)
 lr_metrics = {
     "accuracy": float(acc_eval.evaluate(pred_lr)),
     "f1": float(f1_eval.evaluate(pred_lr)),
-    "auroc": float(auroc_eval.evaluate(pred_lr))
+    "auroc": float(auroc_eval.evaluate(pred_lr)),
 }
 print("Logistic Regression metrics:", lr_metrics)
 
@@ -83,16 +105,28 @@ pipeline_reg = Pipeline(stages=[assembler_reg, linreg])
 model_reg = pipeline_reg.fit(train.select(col_income, col_purchase_amount).na.drop())
 pred_reg = model_reg.transform(test.select(col_income, col_purchase_amount).na.drop())
 
-reg_eval_rmse = RegressionEvaluator(labelCol=col_purchase_amount, predictionCol="prediction", metricName="rmse")
-reg_eval_r2 = RegressionEvaluator(labelCol=col_purchase_amount, predictionCol="prediction", metricName="r2")
+reg_eval_rmse = RegressionEvaluator(
+    labelCol=col_purchase_amount, predictionCol="prediction", metricName="rmse"
+)
+reg_eval_r2 = RegressionEvaluator(
+    labelCol=col_purchase_amount, predictionCol="prediction", metricName="r2"
+)
 reg_metrics = {
     "rmse": float(reg_eval_rmse.evaluate(pred_reg)),
-    "r2": float(reg_eval_r2.evaluate(pred_reg))
+    "r2": float(reg_eval_r2.evaluate(pred_reg)),
 }
 print("Linear Regression metrics:", reg_metrics)
 
 # Save metrics
 with open(os.path.join(OUT, "metrics.json"), "w") as f:
-    json.dump({"decision_tree": dt_metrics, "logistic_regression": lr_metrics, "linear_regression": reg_metrics}, f, indent=2)
+    json.dump(
+        {
+            "decision_tree": dt_metrics,
+            "logistic_regression": lr_metrics,
+            "linear_regression": reg_metrics,
+        },
+        f,
+        indent=2,
+    )
 
 spark.stop()

@@ -1,7 +1,9 @@
 import os
-import pandas as pd
+
 import matplotlib.pyplot as plt
+import pandas as pd
 from pyspark.sql import functions as F
+
 from utils import create_spark, resolve_col
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -33,14 +35,14 @@ summary = df3.select(
     F.mean(col_purchase_amount).alias("mean"),
     F.expr(f"percentile_approx({col_purchase_amount}, 0.5)").alias("median"),
     F.variance(col_purchase_amount).alias("variance"),
-    F.stddev(col_purchase_amount).alias("stddev")
+    F.stddev(col_purchase_amount).alias("stddev"),
 ).toPandas()
 print("Summary stats for PurchaseAmount:")
 print(summary)
 
 # Histogram (sample + cap to avoid memory issues)
-vals = (df3
-    .select(col_purchase_amount)
+vals = (
+    df3.select(col_purchase_amount)
     .where(F.col(col_purchase_amount).isNotNull())
     .sample(False, 0.5, seed=42)
     .limit(100000)
@@ -63,8 +65,8 @@ q25, q50, q75 = quartiles["q"][0]
 print(f"Quartiles for {col_tot_purchases}: Q1={q25}, Median={q50}, Q3={q75}")
 
 # Boxplot for TotalPurchases (sample + cap)
-vals_tp = (df3
-    .select(col_tot_purchases)
+vals_tp = (
+    df3.select(col_tot_purchases)
     .where(F.col(col_tot_purchases).isNotNull())
     .sample(False, 0.5, seed=42)
     .limit(100000)
@@ -79,8 +81,8 @@ plt.close()
 
 # ---- Task 6 ----
 # Scatter plot & Pearson correlation
-pair_pd = (df3
-    .select(col_purchase_amount, col_spending)
+pair_pd = (
+    df3.select(col_purchase_amount, col_spending)
     .dropna()
     .sample(False, 0.5, seed=42)
     .limit(100000)
@@ -109,6 +111,8 @@ result = spark.sql(query)
 print("SQL query sample:")
 result.show(10, truncate=False)
 # Save the query result
-result.coalesce(1).write.mode("overwrite").option("header", True).csv(os.path.join(OUT, "sql_query_result"))
+result.coalesce(1).write.mode("overwrite").option("header", True).csv(
+    os.path.join(OUT, "sql_query_result")
+)
 
 spark.stop()

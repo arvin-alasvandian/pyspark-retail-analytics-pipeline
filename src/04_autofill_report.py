@@ -1,10 +1,14 @@
-import json, os
+import json
+import os
+
 from pyspark.sql import functions as F
+
 from utils import create_spark, resolve_col
 
 BASE = os.path.dirname(os.path.dirname(__file__))
 PARQ = os.path.join(BASE, "data", "parquet")
 OUT = os.path.join(BASE, "outputs")
+
 
 def main():
     spark = create_spark("AutoFillReport")
@@ -20,19 +24,23 @@ def main():
     rows_removed = df2.count() - df3.count()
 
     # Summary stats
-    summary_row = (df3.select(
+    summary_row = df3.select(
         F.min(col_purchase_amount).alias("min"),
         F.max(col_purchase_amount).alias("max"),
         F.mean(col_purchase_amount).alias("mean"),
         F.expr(f"percentile_approx({col_purchase_amount}, 0.5)").alias("median"),
         F.variance(col_purchase_amount).alias("variance"),
-        F.stddev(col_purchase_amount).alias("stddev")
-    ).first())
+        F.stddev(col_purchase_amount).alias("stddev"),
+    ).first()
 
     # Quartiles
-    quartiles = df3.select(
-        F.expr(f"percentile_approx({col_tot_purchases}, array(0.25,0.5,0.75))").alias("q")
-    ).first().q
+    quartiles = (
+        df3.select(
+            F.expr(f"percentile_approx({col_tot_purchases}, array(0.25,0.5,0.75))").alias("q")
+        )
+        .first()
+        .q
+    )
     q1, q2, q3 = quartiles
 
     # Correlation
@@ -48,10 +56,14 @@ def main():
     # Simple interpretation helpers
     def corr_strength(v):
         ab = abs(v or 0.0)
-        if ab < 0.2: return "very weak"
-        if ab < 0.4: return "weak"
-        if ab < 0.6: return "moderate"
-        if ab < 0.8: return "strong"
+        if ab < 0.2:
+            return "very weak"
+        if ab < 0.4:
+            return "weak"
+        if ab < 0.6:
+            return "moderate"
+        if ab < 0.8:
+            return "strong"
         return "very strong"
 
     corr_dir = "positive" if (corr or 0) >= 0 else "negative"
@@ -74,6 +86,7 @@ def main():
         f.write(text)
 
     spark.stop()
+
 
 if __name__ == "__main__":
     main()
