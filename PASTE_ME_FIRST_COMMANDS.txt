@@ -1,0 +1,16 @@
+# Copy-paste commands for arvin-alasvandian
+
+# Local run (creates artifacts)
+python -m pip install -r requirements.txt
+python src/01_data_prep.py
+python src/02_eda_sql.py
+python src/03_models.py
+python src/04_autofill_report.py
+
+# Git init + first push
+git init
+git add .
+git commit -m "Init: PySpark retail analytics pipeline (PySpark + MLlib)"
+git branch -M main
+git remote add origin https://github.com/arvin-alasvandian/pyspark-retail-analytics-pipeline.git
+git push -u origin main
